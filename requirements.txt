@@ -1,0 +1,35 @@
+# Core dependencies
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+plotly>=5.15.0
+requests>=2.31.0
+websocket-client>=1.6.0
+
+# Trading APIs
+pybit>=5.7.0
+ccxt>=4.0.0
+
+# AI/ML
+openai>=1.0.0
+xgboost>=1.7.0
+optuna>=3.3.0
+scikit-learn>=1.3.0
+
+# Utilities
+python-dotenv>=1.0.0
+pytz>=2023.3
+APScheduler>=3.10.0
+psutil>=5.9.0
+websockets>=11.0.0
+
+# Telegram
+python-telegram-bot>=20.0
+
+# WhatsApp (Optional)
+twilio>=8.0.0
+
+# Development
+pytest>=7.4.0
+black>=23.0.0
+flake8>=6.0.0

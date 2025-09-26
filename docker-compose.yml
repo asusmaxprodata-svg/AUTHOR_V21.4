@@ -1,0 +1,83 @@
+# Konfigurasi Docker Compose untuk Trading Bot
+version: "3.9"
+
+services:
+  # Service utama untuk trading bot
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["python", "run.py"]
+    volumes:
+      - ./config:/app/config      # Konfigurasi bot
+      - ./data:/app/data          # Data trading dan cache
+      - ./logs:/app/logs          # Log aplikasi
+      - ./reports:/app/reports    # Laporan trading
+      - ./models:/app/models      # Model machine learning
+    healthcheck:
+      # Pemeriksaan kesehatan bot - cek status keseluruhan sistem dengan toleransi tinggi
+      test: ["CMD", "python", "-c", "import sys; sys.path.append('.'); try: from core.import_fixes import get_logger; logger = get_logger('healthcheck'); except: import logging; logger = logging.getLogger('healthcheck'); try: from core.health_check import get_health_status; health = get_health_status(); status = health.get('overall_status', 'unknown'); logger.info(f'Status kesehatan: {status}'); print('healthy' if status in ['healthy', 'warning'] else 'unhealthy'); except Exception as e: logger.error(f'Pemeriksaan kesehatan gagal: {e}'); print('unhealthy')"]
+      interval: 90s        # Interval pemeriksaan setiap 90 detik
+      timeout: 15s         # Timeout 15 detik
+      retries: 5           # Maksimal 5 percobaan
+      start_period: 180s   # Waktu tunggu sebelum mulai pemeriksaan
+    depends_on:
+      - ui                 # Bot bergantung pada UI service
+    networks:
+      - kang_bot_network
+
+  # Service untuk antarmuka pengguna Streamlit
+  ui:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["python", "streamlit_main.py"]
+    ports:
+      - "8501:8501"        # Port untuk akses web interface
+    volumes:
+      - ./config:/app/config      # Konfigurasi bot
+      - ./data:/app/data          # Data trading dan cache
+      - ./logs:/app/logs          # Log aplikasi
+      - ./reports:/app/reports    # Laporan trading
+      - ./models:/app/models      # Model machine learning
+    healthcheck:
+      # Pemeriksaan kesehatan UI - cek endpoint Streamlit
+      test: ["CMD", "python", "-c", "try: import requests; r = requests.get('http://localhost:8501/_stcore/health', timeout=10); print('healthy' if r.status_code == 200 else 'unhealthy'); except Exception as e: print('unhealthy')"]
+      interval: 45s        # Interval pemeriksaan setiap 45 detik
+      timeout: 15s         # Timeout 15 detik
+      retries: 5           # Maksimal 5 percobaan
+      start_period: 120s   # Waktu tunggu sebelum mulai pemeriksaan
+    networks:
+      - kang_bot_network
+
+  # Service untuk WebSocket server (real-time data)
+  ws:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["python", "streamlit_app/ws_server.py", "--host", "0.0.0.0", "--port", "8765"]
+    ports:
+      - "8765:8765"        # Port untuk koneksi WebSocket
+    volumes:
+      - ./config:/app/config      # Konfigurasi bot
+      - ./data:/app/data          # Data trading dan cache
+      - ./logs:/app/logs          # Log aplikasi
+      - ./reports:/app/reports    # Laporan trading
+      - ./models:/app/models      # Model machine learning
+    healthcheck:
+      # Pemeriksaan kesehatan WebSocket - test koneksi websocket dengan websocket-client
+      test: ["CMD", "python", "-c", "try: from websocket import create_connection; ws = create_connection('ws://localhost:8765', timeout=5); ws.close(); print('healthy'); except Exception as e: print('unhealthy')"]
+      interval: 45s        # Interval pemeriksaan setiap 45 detik
+      timeout: 10s         # Timeout 10 detik
+      retries: 5           # Maksimal 5 percobaan
+      start_period: 120s   # Waktu tunggu sebelum mulai pemeriksaan (diperpanjang)
+    networks:
+      - kang_bot_network
+
+# Konfigurasi jaringan Docker
+networks:
+  kang_bot_network:
+    driver: bridge         # Driver bridge untuk komunikasi antar container
